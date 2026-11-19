@@ -1,0 +1,17 @@
+## Interface: 16001
+## Title: Gear Path
+## Notes: Build your own Gear Sets, see where every item comes from, and follow full Quest Chains.
+## Author: anom0ly
+## Version: 0.1.0
+## Dependencies: QuestieDB
+## SavedVariables: GearPathDB
+## SavedVariablesPerCharacter: GearPathCharDB
+## IconTexture: Interface\Icons\INV_Chest_Cloth_17
+
+embeds.xml
+
+Core\SavedData.lua
+UI\Theme.lua
+UI\MainWindow.lua
+Core\Minimap.lua
+Core\Init.lua
