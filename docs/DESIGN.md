@@ -108,7 +108,7 @@ The biggest risk is the data, not the code. Forever content is still being disco
 
 - **Client version.** WoW Forever addons target Interface 16001 with a max level of 60 ([GearQuest Forever](https://www.curseforge.com/wow/addons/gearquest-forever)).
 - **QuestieDB dependency.** Gear Path lists QuestieDB as a required dependency and reads it through `LibQuestieDB`. Its numeric getters return 0 instead of nil, and every table read returns a fresh copy. QuestieDB is GPLv3 with some unsettled historic contributions, which is why we read it rather than copy it.
-- **Quest completion.** Confirm that the Forever client exposes `C_QuestLog.IsQuestFlaggedCompleted(questID)`. The client can't tell which quest reward a player picked, so Missed is inferred: chain done and item never Owned.
+- **Quest completion.** The Forever client exposes `C_QuestLog.IsQuestFlaggedCompleted(questID)` (confirmed in game on Nov 19, 2026). The client can't tell which quest reward a player picked, so Missed is inferred: chain done and item never Owned.
 - **Refresh triggers.** Re-check chains on `QUEST_TURNED_IN`, `QUEST_ACCEPTED` and login. Re-check Owned items on `BAG_UPDATE`, `PLAYER_EQUIPMENT_CHANGED` and `BANKFRAME_OPENED`.
 - **Incomplete data.** QuestieDB's Forever data is still being filled in. The UI must show "Source not yet known" cleanly.
 - **Performance.** Build nothing at login. Look up data when the window opens or a chain is clicked.
@@ -123,5 +123,5 @@ The design review on Nov 18 settled the earlier open questions: the name is Gear
 
 Still open:
 
-- [ ] Confirm the Forever client's quest-completion API before building on it.
+- [x] Confirm the Forever client's quest-completion API before building on it. Settled Nov 19: `C_QuestLog.IsQuestFlaggedCompleted` works on the Forever client.
 - [ ] Decide whether Next Steps returns in Phase 2.
