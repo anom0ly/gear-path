@@ -11,7 +11,11 @@
 embeds.xml
 
 Core\SavedData.lua
+Core\Slots.lua
+Core\GearSets.lua
 UI\Theme.lua
+UI\Widgets.lua
+UI\Dialogs.lua
 UI\MainWindow.lua
 Core\Minimap.lua
 Core\Init.lua
