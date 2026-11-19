@@ -41,6 +41,38 @@ local function panel(parent)
     return p
 end
 
+-- Square red button with a gold border and a thin gold X, as in the mockup.
+function MainWindow.CreateCloseButton(parent)
+    local b = CreateFrame("Button", nil, parent, BACKDROP)
+    b:SetSize(26, 26)
+    paint(b, C.buttonRed, C.buttonBorder)
+
+    local strokes = {}
+    for i, angle in ipairs({ math.pi / 4, -math.pi / 4 }) do
+        local line = b:CreateTexture(nil, "OVERLAY")
+        line:SetColorTexture(unpack(C.buttonText))
+        line:SetSize(2, 14)
+        line:SetPoint("CENTER")
+        line:SetRotation(angle)
+        strokes[i] = line
+    end
+
+    local function setX(color)
+        for _, line in ipairs(strokes) do line:SetColorTexture(unpack(color)) end
+    end
+    b:SetScript("OnEnter", function()
+        b:SetBackdropBorderColor(unpack(C.gold))
+        setX(C.gold)
+    end)
+    b:SetScript("OnLeave", function()
+        b:SetBackdropBorderColor(unpack(C.buttonBorder))
+        setX(C.buttonText)
+    end)
+    b:SetScript("OnMouseDown", function() b:SetBackdropColor(unpack(C.buttonRedPressed)) end)
+    b:SetScript("OnMouseUp", function() b:SetBackdropColor(unpack(C.buttonRed)) end)
+    return b
+end
+
 local function build()
     local f = CreateFrame("Frame", "GearPathFrame", UIParent, BACKDROP)
     f:SetSize(S.width, S.height)
@@ -72,8 +104,8 @@ local function build()
     local titleText = text(title, "GameFontNormalLarge", C.gold, "Gear Path")
     titleText:SetPoint("LEFT", 14, 0)
 
-    local close = CreateFrame("Button", nil, title, "UIPanelCloseButton")
-    close:SetPoint("RIGHT", 2, 0)
+    local close = MainWindow.CreateCloseButton(title)
+    close:SetPoint("RIGHT", -8, 0)
     close:SetScript("OnClick", function() f:Hide() end)
 
     divider(f, f, -S.titleBar)

@@ -23,6 +23,10 @@ Theme.colors = {
     label = rgb("d4b04a"),
     text = rgb("e8e0cc"),
     muted = rgb("b3a88f"),
+    buttonRed = rgb("5c0f0f"),
+    buttonRedPressed = rgb("3d0a0a"),
+    buttonBorder = rgb("a8862f"),
+    buttonText = rgb("ffd76a"),
 }
 
 Theme.size = {
