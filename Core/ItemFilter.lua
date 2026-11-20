@@ -79,6 +79,29 @@ function ItemFilter.CanUseType(classFile, classID, subClassID)
     return true
 end
 
+-- Type filters in the item picker. Only Slots that take armor types get them.
+ItemFilter.ARMOR_SLOTS = set { "head", "shoulder", "back", "chest", "wrist", "hands", "waist", "legs", "feet" }
+ItemFilter.ARMOR_FILTERS = {
+    { key = "cloth", label = "Cloth", subClassID = 1 },
+    { key = "leather", label = "Leather", subClassID = 2 },
+    { key = "mail", label = "Mail", subClassID = 3 },
+    { key = "plate", label = "Plate", subClassID = 4 },
+    { key = "other", label = "Other" },
+}
+local FILTER_BY_SUBCLASS = { [1] = "cloth", [2] = "leather", [3] = "mail", [4] = "plate" }
+
+--- Which of the five armor filters an item falls under.
+function ItemFilter.ArmorFilterKey(classID, subClassID)
+    return classID == ARMOR and FILTER_BY_SUBCLASS[subClassID] or "other"
+end
+
+--- Whether this class can wear an armor filter's type ("other" is always usable).
+function ItemFilter.ArmorFilterUsable(classFile, filter)
+    if not filter.subClassID then return true end
+    local class = ItemFilter.CLASSES[classFile]
+    return not class or class.armor[filter.subClassID] == true
+end
+
 local function hasBit(mask, flag)
     return mask % (flag * 2) >= flag
 end

@@ -54,6 +54,11 @@ local function chip(parent, onClick)
             self.label:SetTextColor(unpack(C.faint))
         end
     end
+    function b:SetDisabled()
+        self.on = false
+        W.Paint(self, { 0, 0, 0, 0 }, C.divider)
+        self.label:SetTextColor(unpack(C.emptyIcon))
+    end
     return b
 end
 
@@ -262,25 +267,21 @@ function ItemPicker:Update()
     f.levelBox:SetChecked(self.hideHigh)
 
     -- Candidates for this Slot, minus Unobtainable items.
-    local candidates, types, typeOrder = {}, {}, {}
+    local candidates = {}
+    local armorSlot = ns.ItemFilter.ARMOR_SLOTS[self.slotId]
     for _, itemID in ipairs(ns.ItemIndex.ForSlot(self.slotId)) do
         local item = ns.Data.Item(itemID)
         if item and item.name and not isUnobtainable(itemID, player) then
             local info = ns.ItemIndex.Info(itemID)
-            local key = info and (info.classID .. ":" .. info.subClassID) or "?"
-            if not types[key] then
-                types[key] = info and info.subType or "Other"
-                typeOrder[#typeOrder + 1] = key
-            end
+            local key = armorSlot and ns.ItemFilter.ArmorFilterKey(info and info.classID, info and info.subClassID) or nil
             candidates[#candidates + 1] = { id = itemID, name = item.name, level = item.requiredLevel, typeKey = key }
         end
     end
-    table.sort(typeOrder, function(a, b) return types[a] < types[b] end)
-    self:LayoutChips(typeOrder, types)
+    self:LayoutChips(armorSlot, player.classFile)
 
     local results = {}
     for _, e in ipairs(candidates) do
-        if not self.typeOff[e.typeKey]
+        if not (e.typeKey and self.typeOff[e.typeKey])
             and not (self.hideHigh and (e.level or 0) > player.level)
             and ns.ItemFilter.MatchesSearch(e.name, self.query) then
             results[#results + 1] = e
@@ -302,12 +303,13 @@ function ItemPicker:Update()
     self:UpdateRows()
 end
 
-function ItemPicker:LayoutChips(typeOrder, types)
+--- The five fixed armor filters, shown only on Slots that take armor types.
+--- Types this class can't wear are greyed out and can't be clicked.
+function ItemPicker:LayoutChips(show, classFile)
     local f = self.frame
-    local show = #typeOrder > 1
     f.typeLabel:SetShown(show)
     local x = f.typeLabel:GetStringWidth() + 10
-    for i, key in ipairs(typeOrder) do
+    for i, filter in ipairs(ns.ItemFilter.ARMOR_FILTERS) do
         local c = f.chips[i]
         if not c then
             c = chip(f, function(b)
@@ -315,21 +317,19 @@ function ItemPicker:LayoutChips(typeOrder, types)
                 self.offset = 0
                 self:Update()
             end)
+            c.key = filter.key
+            c.label:SetText(filter.label)
+            c:SetWidth(c.label:GetStringWidth() + 20)
+            c:ClearAllPoints()
+            c:SetPoint("LEFT", f.typeLabel, "LEFT", x, 0)
             f.chips[i] = c
         end
-        c.key = key
-        c.label:SetText(types[key])
-        c:SetWidth(c.label:GetStringWidth() + 20)
-        c:SetOn(not self.typeOff[key])
-        c:ClearAllPoints()
-        c:SetPoint("LEFT", f.typeLabel, "LEFT", x, 0)
         x = x + c:GetWidth() + 6
-        c.inUse = show and x < 380
-        c:SetShown(c.inUse)
-    end
-    for i = #typeOrder + 1, #f.chips do
-        f.chips[i].inUse = false
-        f.chips[i]:Hide()
+        local usable = ns.ItemFilter.ArmorFilterUsable(classFile, filter)
+        c:EnableMouse(usable)
+        if usable then c:SetOn(not self.typeOff[filter.key]) else c:SetDisabled() end
+        c.inUse = show
+        c:SetShown(show)
     end
 end
 

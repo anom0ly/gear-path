@@ -104,4 +104,28 @@ describe("ItemFilter", function()
         assert.are.equal("Quest, Drop, Vendor", F.SourceSummary(sources, true))
         assert.are.equal("Source not yet known", F.SourceSummary({}))
     end)
+
+    describe("armor filters", function()
+        it("only armor Slots get filters", function()
+            assert.is_true(F.ARMOR_SLOTS.back)
+            assert.is_true(F.ARMOR_SLOTS.feet)
+            assert.is_nil(F.ARMOR_SLOTS.neck)
+            assert.is_nil(F.ARMOR_SLOTS.mainhand)
+            assert.is_nil(F.ARMOR_SLOTS.trinket1)
+        end)
+
+        it("maps items to the five filters", function()
+            assert.are.equal("cloth", F.ArmorFilterKey(4, 1))
+            assert.are.equal("plate", F.ArmorFilterKey(4, 4))
+            assert.are.equal("other", F.ArmorFilterKey(4, 0))
+            assert.are.equal("other", F.ArmorFilterKey(2, 1))
+            assert.are.equal("other", F.ArmorFilterKey(nil, nil))
+        end)
+
+        it("greys out types the class can't wear", function()
+            local usable = {}
+            for _, f in ipairs(F.ARMOR_FILTERS) do usable[f.key] = F.ArmorFilterUsable("ROGUE", f) end
+            assert.are.same({ cloth = true, leather = true, mail = false, plate = false, other = true }, usable)
+        end)
+    end)
 end)
