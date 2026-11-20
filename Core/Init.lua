@@ -12,13 +12,53 @@ events:SetScript("OnEvent", function(self, event, name)
     ns.accountDB = GearPathDB
     ns.charDB = GearPathCharDB
 
+    local ok, message = ns.Data.Check()
+    ns.dataReady = ok
+    if not ok then
+        print("|cffffd100Gear Path|r: " .. message)
+    end
+
     ns.Minimap:Init(ns.accountDB)
 end)
 
+local function say(line)
+    print("|cffffd100Gear Path|r: " .. line)
+end
+
+local function itemCommand(arg)
+    local itemID = ns.Data.ParseItemID(arg)
+    if not itemID then
+        say("Usage: /gearpath item <item link or item ID>")
+        return
+    end
+    if not ns.dataReady then
+        say("QuestieDB isn't available, so items can't be looked up.")
+        return
+    end
+    for _, line in ipairs(ns.Data.DescribeItem(itemID)) do say(line) end
+    -- Step 4 sorts items into Slots with the client's equip location. Report which call works here.
+    local instant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+    if instant then
+        local _, _, _, equipLoc = instant(itemID)
+        say("  Slot (instant lookup): " .. ((equipLoc and equipLoc ~= "") and equipLoc or "none"))
+    else
+        say("  No instant item lookup on this client.")
+    end
+    local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+    if getInfo then
+        local equipLoc = select(9, getInfo(itemID))
+        say("  Slot (cached lookup): " .. (equipLoc == nil and "not cached yet, try again" or (equipLoc ~= "" and equipLoc or "none")))
+    end
+end
+
 SLASH_GEARPATH1 = "/gearpath"
 SlashCmdList.GEARPATH = function(msg)
-    msg = strtrim(msg or ""):lower()
-    if msg == "minimap" then
+    msg = strtrim(msg or "")
+    local command, rest = msg:match("^(%S*)%s*(.-)$")
+    command = command:lower()
+    if command == "item" then
+        itemCommand(rest)
+    elseif command == "minimap" then
         local hide = not ns.accountDB.minimap.hide
         ns.Minimap:SetHidden(ns.accountDB, hide)
         print("|cffffd100Gear Path|r: minimap button " .. (hide and "hidden" or "shown") .. ".")
