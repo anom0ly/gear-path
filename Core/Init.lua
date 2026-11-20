@@ -51,6 +51,18 @@ local function itemCommand(arg)
     end
 end
 
+-- Shift-clicking an item link while the item picker is open puts it in the Slot.
+local function onModifiedItemClick(link)
+    if type(link) == "string" and IsModifiedClick("CHATLINK") and ns.ItemPicker.frame then
+        ns.ItemPicker:TakeLink(link)
+    end
+end
+if HandleModifiedItemClick then
+    hooksecurefunc("HandleModifiedItemClick", onModifiedItemClick)
+elseif ChatEdit_InsertLink then
+    hooksecurefunc("ChatEdit_InsertLink", onModifiedItemClick)
+end
+
 SLASH_GEARPATH1 = "/gearpath"
 SlashCmdList.GEARPATH = function(msg)
     msg = strtrim(msg or "")

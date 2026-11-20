@@ -39,6 +39,8 @@ Theme.colors = {
     black = rgb("000000"),
     emptyIcon = rgb("5a4d33"),
     ownedBar = rgb("5fae55"),
+    rowBg = rgb("1a160f"),
+    statusText = rgb("c8bfa8"),
 }
 
 Theme.size = {
