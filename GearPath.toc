@@ -13,6 +13,7 @@ embeds.xml
 Core\SavedData.lua
 Core\Slots.lua
 Core\GearSets.lua
+Core\Data.lua
 UI\Theme.lua
 UI\Widgets.lua
 UI\Dialogs.lua
