@@ -25,6 +25,58 @@ local function say(line)
     print("|cffffd100Gear Path|r: " .. line)
 end
 
+local function bits(mask)
+    local out = {}
+    for i = 0, 15 do
+        local f = 2 ^ i
+        if mask % (f * 2) >= f then out[#out + 1] = i + 1 end
+    end
+    return table.concat(out, ",")
+end
+
+--- Why the item picker does or doesn't list an item, for checking in game.
+local function pickerLines(itemID)
+    local lines = {}
+    local function add(text) lines[#lines + 1] = "  Picker: " .. text end
+    local player = ns.ItemIndex.Player()
+    local info = ns.ItemIndex.Info(itemID)
+    if not info then
+        add("the game client returned no item info for this item.")
+        return lines
+    end
+    local slots = ns.ItemFilter.SlotsFor(info.equipLoc, player.classFile)
+    add(("equip location %s, type %s:%s (%s)"):format(tostring(info.equipLoc),
+        tostring(info.classID), tostring(info.subClassID), tostring(info.subType)))
+    if #slots == 0 then add("doesn't fit a Slot for your class.") end
+    if not ns.ItemFilter.CanUseType(player.classFile, info.classID, info.subClassID) then
+        add("your class can't use this type.")
+    end
+    for _, s in ipairs(ns.Data.ItemSources(itemID)) do
+        if s.kind == "quest" then
+            local q = ns.Data.Quest(s.id)
+            add(("quest %d races %s (bits %s), classes %s (bits %s)"):format(s.id,
+                tostring(q and q.requiredRaces), q and q.requiredRaces and bits(q.requiredRaces) or "-",
+                tostring(q and q.requiredClasses), q and q.requiredClasses and bits(q.requiredClasses) or "-"))
+        end
+    end
+    local _, _, raceID = UnitRace("player")
+    local _, _, classID = UnitClass("player")
+    add(("you are race %s, class %s"):format(tostring(raceID), tostring(classID)))
+    add(ns.ItemFilter.Unobtainable(itemID, player, ns.Data) and "hidden as Unobtainable." or "not Unobtainable.")
+    if ns.ItemIndex.IsReady() then
+        for _, slotId in ipairs(slots) do
+            local found = false
+            for _, id in ipairs(ns.ItemIndex.ForSlot(slotId)) do
+                if id == itemID then found = true break end
+            end
+            add(("%s in the %s list."):format(found and "is" or "is NOT", slotId))
+        end
+    else
+        add("the item list isn't built yet; open the picker once and run this again.")
+    end
+    return lines
+end
+
 local function itemCommand(arg)
     local itemID = ns.Data.ParseItemID(arg)
     if not itemID then
@@ -36,19 +88,19 @@ local function itemCommand(arg)
         return
     end
     for _, line in ipairs(ns.Data.DescribeItem(itemID)) do say(line) end
-    -- Step 4 sorts items into Slots with the client's equip location. Report which call works here.
-    local instant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
-    if instant then
-        local _, _, _, equipLoc = instant(itemID)
-        say("  Slot (instant lookup): " .. ((equipLoc and equipLoc ~= "") and equipLoc or "none"))
-    else
-        say("  No instant item lookup on this client.")
+    for _, line in ipairs(pickerLines(itemID)) do say(line) end
+end
+
+-- Shift-clicking an item link while the item picker is open puts it in the Slot.
+local function onModifiedItemClick(link)
+    if type(link) == "string" and IsModifiedClick("CHATLINK") and ns.ItemPicker.frame then
+        ns.ItemPicker:TakeLink(link)
     end
-    local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
-    if getInfo then
-        local equipLoc = select(9, getInfo(itemID))
-        say("  Slot (cached lookup): " .. (equipLoc == nil and "not cached yet, try again" or (equipLoc ~= "" and equipLoc or "none")))
-    end
+end
+if HandleModifiedItemClick then
+    hooksecurefunc("HandleModifiedItemClick", onModifiedItemClick)
+elseif ChatEdit_InsertLink then
+    hooksecurefunc("ChatEdit_InsertLink", onModifiedItemClick)
 end
 
 SLASH_GEARPATH1 = "/gearpath"

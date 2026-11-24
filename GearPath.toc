@@ -14,9 +14,12 @@ Core\SavedData.lua
 Core\Slots.lua
 Core\GearSets.lua
 Core\Data.lua
+Core\ItemFilter.lua
+Core\ItemIndex.lua
 UI\Theme.lua
 UI\Widgets.lua
 UI\Dialogs.lua
+UI\ItemPicker.lua
 UI\MainWindow.lua
 Core\Minimap.lua
 Core\Init.lua

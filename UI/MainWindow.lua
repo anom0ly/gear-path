@@ -48,6 +48,7 @@ function MainWindow:NewSet()
         onConfirm = function(name)
             if ns.GearSets.Create(db(), name) then
                 self.selectedSlot = nil
+                self.changingSlot = nil
                 self:Refresh()
             end
         end,
@@ -208,6 +209,10 @@ function MainWindow:BuildSlotRows(panel)
         icon:SetSize(22, 22)
         icon:SetPoint("LEFT", 6, 0)
         W.Paint(icon, { 0, 0, 0, 0 }, C.emptyIcon)
+        row.iconFrame = icon
+        row.icon = icon:CreateTexture(nil, "ARTWORK")
+        row.icon:SetPoint("TOPLEFT", 1, -1)
+        row.icon:SetPoint("BOTTOMRIGHT", -1, 1)
 
         row.slotLabel = W.Text(row, "GameFontHighlightSmall", C.muted, slot.label)
         row.slotLabel:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, 1)
@@ -215,9 +220,12 @@ function MainWindow:BuildSlotRows(panel)
         row.itemLabel:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 8, -1)
         row.status = W.Text(row, "GameFontHighlightSmall", C.faint, "Choose item")
         row.status:SetPoint("RIGHT", -8, 0)
+        row.itemLabel:SetPoint("RIGHT", row.status, "LEFT", -6, 0)
+        row.itemLabel:SetJustifyH("LEFT")
 
         row:SetScript("OnClick", function()
             self.selectedSlot = slot.id
+            self.changingSlot = nil
             self:Refresh()
         end)
         row:SetScript("OnEnter", function(r)
@@ -228,31 +236,77 @@ function MainWindow:BuildSlotRows(panel)
     end
 end
 
+function MainWindow:CurrentSet()
+    return ns.GearSets.Get(db(), ns.GearSets.Selected(db()))
+end
+
 function MainWindow:RefreshSlotRows()
+    local set = self:CurrentSet()
+    local items = set and set.items or {}
     for _, row in ipairs(self.slotRows) do
         if row.slot.id == self.selectedSlot then
             W.Paint(row, C.highlight, C.highlightBorder)
         else
             W.Paint(row, { 0, 0, 0, 0 }, { 0, 0, 0, 0 })
         end
+        local itemID = items[row.slot.id]
+        if itemID then
+            local item = ns.Data.Item(itemID)
+            local info = ns.ItemIndex.Info(itemID)
+            local r, g, b = ns.ItemPicker.QualityColor(itemID)
+            row.icon:SetTexture(info and info.icon or 134400)
+            row.icon:Show()
+            W.Paint(row.iconFrame, { 0, 0, 0, 0 }, { r, g, b, 1 })
+            row.itemLabel:SetFontObject(GameFontHighlight)
+            row.itemLabel:SetText(item and item.name or ("Item " .. itemID))
+            row.itemLabel:SetTextColor(r, g, b)
+            row.status:SetText(ns.ItemFilter.SourceSummary(ns.Data.ItemSources(itemID), true))
+            row.status:SetTextColor(unpack(C.statusText))
+        else
+            row.icon:Hide()
+            W.Paint(row.iconFrame, { 0, 0, 0, 0 }, C.emptyIcon)
+            row.itemLabel:SetFontObject(GameFontDisable)
+            row.itemLabel:SetText("Empty")
+            row.itemLabel:SetTextColor(unpack(C.faint))
+            row.status:SetText("Choose item")
+            row.status:SetTextColor(unpack(C.faint))
+        end
     end
 end
 
 function MainWindow:RefreshSource()
     local f = self.frame
-    local slot
-    for _, s in ipairs(ns.Slots) do if s.id == self.selectedSlot then slot = s end end
-    if slot then
-        f.sourceHint:Hide()
-        f.sourceTitle:SetText("Choose an item for " .. slot.label)
-        f.sourceTitle:Show()
-        f.sourceBody:SetText("No item chosen for this Slot yet.")
-        f.sourceBody:Show()
+    local picker = ns.ItemPicker
+    local slotId = self.selectedSlot
+    local set = self:CurrentSet()
+    local itemID = slotId and set and set.items[slotId]
+    f.sourceHint:SetShown(slotId == nil)
+    if not slotId then
+        picker:Hide()
+        picker:HideDetail()
+    elseif itemID and self.changingSlot ~= slotId then
+        picker:Hide()
+        picker:ShowDetail(slotId, itemID)
     else
-        f.sourceHint:Show()
-        f.sourceTitle:Hide()
-        f.sourceBody:Hide()
+        picker:HideDetail()
+        picker:Show(slotId)
     end
+end
+
+--- Puts an item in a Slot of the Selected Gear Set, or empties it when itemID is nil.
+function MainWindow:SetSlotItem(slotId, itemID)
+    local set = self:CurrentSet()
+    if not set then return end
+    set.items[slotId] = itemID
+    self.selectedSlot = slotId
+    self.changingSlot = nil
+    self:Refresh()
+end
+
+--- Reopens the picker for a filled Slot.
+function MainWindow:ChangeSlot(slotId)
+    self.changingSlot = slotId
+    self:Refresh()
 end
 
 ---------------------------------------------------------------------------
@@ -358,10 +412,8 @@ function MainWindow:Build()
     source:SetPoint("BOTTOMRIGHT", -S.padding, bodyBottom)
     f.sourceHint = W.Text(source, "GameFontHighlight", C.muted, "Choose a Slot to see where its item comes from.")
     f.sourceHint:SetPoint("CENTER")
-    f.sourceTitle = W.Text(source, "GameFontNormalLarge", C.gold)
-    f.sourceTitle:SetPoint("TOPLEFT", 16, -16)
-    f.sourceBody = W.Text(source, "GameFontHighlight", C.muted)
-    f.sourceBody:SetPoint("TOPLEFT", f.sourceTitle, "BOTTOMLEFT", 0, -10)
+    ns.ItemPicker:Build(source, self)
+    ns.ItemPicker:BuildDetail(source)
     f.sourcePanel = source
 
     -- First open: no Gear Sets yet.
