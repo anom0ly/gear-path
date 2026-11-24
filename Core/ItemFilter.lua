@@ -170,3 +170,23 @@ function ItemFilter.SourceSummary(sources, short)
     if #out == 0 then return short and "Source unknown" or "Source not yet known" end
     return table.concat(out, ", ")
 end
+
+-- Source filters in the item picker, shown on every Slot.
+ItemFilter.SOURCE_FILTERS = {
+    { key = "quest", label = "Quest" },
+    { key = "drop", label = "Drop" },
+    { key = "vendor", label = "Vendor" },
+    { key = "unknown", label = "Not yet known" },
+}
+local FILTER_BY_SOURCE = { quest = "quest", drop = "drop", objectDrop = "drop", vendor = "vendor" }
+
+--- Whether an item passes the Source filters. off = { [key] = true } for filters turned off.
+--- An item with several Sources passes while any of them is on.
+function ItemFilter.PassesSourceFilter(sources, off)
+    if #sources == 0 then return not off.unknown end
+    for _, s in ipairs(sources) do
+        local key = FILTER_BY_SOURCE[s.kind]
+        if key and not off[key] then return true end
+    end
+    return false
+end

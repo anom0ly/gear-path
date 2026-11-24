@@ -8,7 +8,7 @@ local C = ns.Theme.colors
 local ItemPicker = {}
 ns.ItemPicker = ItemPicker
 
-local ROWS, ROW_H, ROW_GAP = 9, 36, 4
+local ROWS, ROW_H, ROW_GAP = 8, 36, 4
 local unobtainable = {} -- itemID -> bool, cached for the session
 
 local function slotLabel(slotId)
@@ -143,6 +143,23 @@ function ItemPicker:Build(panel, window)
     f.typeLabel:SetPoint("TOPLEFT", f.search, "BOTTOMLEFT", 0, -12)
     f.chips = {}
 
+    f.sourceLabel = W.Text(f, "GameFontHighlightSmall", C.muted, "Source")
+    f.sourceChips = {}
+    local x = 54
+    for i, filter in ipairs(ns.ItemFilter.SOURCE_FILTERS) do
+        local c = chip(f, function(b)
+            self.sourceOff[b.key] = not self.sourceOff[b.key] or nil
+            self.offset = 0
+            self:Update()
+        end)
+        c.key = filter.key
+        c.label:SetText(filter.label)
+        c:SetWidth(c.label:GetStringWidth() + 20)
+        c:SetPoint("LEFT", f.sourceLabel, "LEFT", x, 0)
+        x = x + c:GetWidth() + 6
+        f.sourceChips[i] = c
+    end
+
     f.levelBox = checkbox(f, "Hide items above my level", function()
         self.hideHigh = not self.hideHigh
         self.offset = 0
@@ -151,7 +168,6 @@ function ItemPicker:Build(panel, window)
     f.levelBox:SetPoint("TOPRIGHT", f.search, "BOTTOMRIGHT", 0, -10)
 
     f.count = W.Text(f, "GameFontHighlightSmall", C.faint)
-    f.count:SetPoint("TOPLEFT", f.search, "BOTTOMLEFT", 0, -40)
 
     local list = CreateFrame("Frame", nil, f)
     list:SetPoint("TOPLEFT", f.count, "BOTTOMLEFT", 0, -6)
@@ -201,7 +217,7 @@ function ItemPicker:Build(panel, window)
     loading.note:SetPoint("TOP", track, "BOTTOM", 0, -12)
     f.loading = loading
 
-    self.offset, self.results, self.typeOff = 0, {}, {}
+    self.offset, self.results, self.typeOff, self.sourceOff = 0, {}, {}, {}
 
     -- Repaint names once the client loads item data (quality colors).
     local events = CreateFrame("Frame")
@@ -226,7 +242,7 @@ function ItemPicker:Show(slotId)
     local f = self.frame
     if self.slotId ~= slotId then
         self.slotId = slotId
-        self.query, self.offset, self.typeOff = "", 0, {}
+        self.query, self.offset, self.typeOff, self.sourceOff = "", 0, {}, {}
         f.search:SetText("")
     end
     f.title:SetText("Choose an item for " .. slotLabel(slotId))
@@ -252,7 +268,8 @@ function ItemPicker:Update()
     if not f or not self.slotId then return end
     local ready = ns.ItemIndex.IsReady()
     f.loading:SetShown(not ready)
-    setShown({ f.search, f.typeLabel, f.levelBox, f.count, f.list, f.tip }, ready)
+    setShown({ f.search, f.typeLabel, f.levelBox, f.count, f.list, f.tip, f.sourceLabel }, ready)
+    setShown(f.sourceChips, ready)
     for _, c in ipairs(f.chips) do c:SetShown(ready and c.inUse) end
     f.empty:SetShown(false)
     f.emptyNote:SetShown(false)
@@ -274,14 +291,21 @@ function ItemPicker:Update()
         if item and item.name and not isUnobtainable(itemID, player) then
             local info = ns.ItemIndex.Info(itemID)
             local key = armorSlot and ns.ItemFilter.ArmorFilterKey(info and info.classID, info and info.subClassID) or nil
-            candidates[#candidates + 1] = { id = itemID, name = item.name, level = item.requiredLevel, typeKey = key }
+            candidates[#candidates + 1] = { id = itemID, name = item.name, level = item.requiredLevel, typeKey = key,
+                                            sources = ns.Data.ItemSources(itemID) }
         end
     end
     self:LayoutChips(armorSlot, player.classFile)
+    f.sourceLabel:ClearAllPoints()
+    f.sourceLabel:SetPoint("TOPLEFT", f.search, "BOTTOMLEFT", 0, armorSlot and -40 or -12)
+    for _, c in ipairs(f.sourceChips) do c:SetOn(not self.sourceOff[c.key]) end
+    f.count:ClearAllPoints()
+    f.count:SetPoint("TOPLEFT", f.sourceLabel, "BOTTOMLEFT", 0, -14)
 
     local results = {}
     for _, e in ipairs(candidates) do
         if not (e.typeKey and self.typeOff[e.typeKey])
+            and ns.ItemFilter.PassesSourceFilter(e.sources, self.sourceOff)
             and not (self.hideHigh and (e.level or 0) > player.level)
             and ns.ItemFilter.MatchesSearch(e.name, self.query) then
             results[#results + 1] = e

@@ -128,4 +128,28 @@ describe("ItemFilter", function()
             assert.are.same({ cloth = true, leather = true, mail = false, plate = false, other = true }, usable)
         end)
     end)
+
+    describe("PassesSourceFilter", function()
+        local quest, drop, chest, vendor = { kind = "quest", id = 1 }, { kind = "drop", id = 2 },
+            { kind = "objectDrop", id = 3 }, { kind = "vendor", id = 4 }
+
+        it("keeps everything with no filters off", function()
+            assert.is_true(F.PassesSourceFilter({ quest }, {}))
+            assert.is_true(F.PassesSourceFilter({}, {}))
+        end)
+
+        it("keeps an item while any of its Sources is on", function()
+            assert.is_true(F.PassesSourceFilter({ drop, vendor }, { drop = true }))
+            assert.is_false(F.PassesSourceFilter({ drop, vendor }, { drop = true, vendor = true }))
+        end)
+
+        it("counts object drops as Drop", function()
+            assert.is_false(F.PassesSourceFilter({ chest }, { drop = true }))
+        end)
+
+        it("Not yet known covers items with no Source", function()
+            assert.is_false(F.PassesSourceFilter({}, { unknown = true }))
+            assert.is_true(F.PassesSourceFilter({ quest }, { unknown = true }))
+        end)
+    end)
 end)
