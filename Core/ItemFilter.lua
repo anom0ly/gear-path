@@ -107,7 +107,7 @@ local function hasBit(mask, flag)
 end
 
 --- Whether a quest is open to this character. player = { raceMask, classMask }.
-local function questOpen(quest, player)
+function ItemFilter.QuestOpen(quest, player)
     if not quest then return false end
     if quest.requiredRaces and not hasBit(quest.requiredRaces, player.raceMask) then return false end
     if quest.requiredClasses and not hasBit(quest.requiredClasses, player.classMask) then return false end
@@ -122,7 +122,7 @@ function ItemFilter.Unobtainable(itemID, player, data)
     if #sources == 0 then return false end
     for _, s in ipairs(sources) do
         if s.kind == "quest" then
-            if questOpen(data.Quest(s.id), player) then return false end
+            if ItemFilter.QuestOpen(data.Quest(s.id), player) then return false end
         elseif s.kind == "vendor" then
             local npc = data.Npc(s.id)
             local friendly = npc and npc.friendlyTo

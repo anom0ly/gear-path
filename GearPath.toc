@@ -15,10 +15,12 @@ Core\Slots.lua
 Core\GearSets.lua
 Core\Data.lua
 Core\ItemFilter.lua
+Core\SourceDetails.lua
 Core\ItemIndex.lua
 UI\Theme.lua
 UI\Widgets.lua
 UI\Dialogs.lua
+UI\SourcePanel.lua
 UI\ItemPicker.lua
 UI\MainWindow.lua
 Core\Minimap.lua
