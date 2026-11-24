@@ -447,10 +447,7 @@ function ItemPicker:BuildDetail(panel)
     d.meta = W.Text(d, "GameFontHighlight", C.muted)
     d.meta:SetPoint("BOTTOMLEFT", d.iconFrame, "BOTTOMRIGHT", 12, 2)
 
-    d.sources = W.Text(d, "GameFontHighlight", C.muted)
-    d.sources:SetPoint("TOPLEFT", d.iconFrame, "BOTTOMLEFT", 0, -16)
-    d.sources:SetPoint("RIGHT", d, "RIGHT")
-    d.sources:SetJustifyH("LEFT")
+    ns.SourcePanel:Build(d, d.iconFrame)
     self.detail = d
 end
 
@@ -470,7 +467,7 @@ function ItemPicker:ShowDetail(slotId, itemID)
     end
     if item and item.requiredLevel then meta[#meta + 1] = "Requires level " .. item.requiredLevel end
     d.meta:SetText(table.concat(meta, " · "))
-    d.sources:SetText("Source: " .. ns.ItemFilter.SourceSummary(ns.Data.ItemSources(itemID)))
+    ns.SourcePanel:Show(itemID)
     d.change:SetScript("OnClick", function() self.window:ChangeSlot(slotId) end)
     d.remove:SetScript("OnClick", function() self.window:SetSlotItem(slotId, nil) end)
     d:Show()
