@@ -55,6 +55,25 @@ local function levelRange(minLevel, maxLevel)
     return ("level %d–%d"):format(minLevel, maxLevel)
 end
 
+--- Name, giver, zone, level and limits of one quest, for a card.
+function SourceDetails.QuestInfo(q, data, names)
+    local giver = q.startNpcs and data.Npc(q.startNpcs[1])
+    local where = giver and giver.zoneID and names.zone(giver.zoneID)
+        or (q.zoneID and names.zone(q.zoneID))
+    local level
+    if q.level then
+        level = "Quest level " .. q.level
+        if q.requiredLevel then level = level .. " · you can take it at " .. q.requiredLevel end
+    elseif q.requiredLevel then
+        level = "You can take it at " .. q.requiredLevel
+    end
+    return {
+        id = q.id, name = q.name or ("Quest " .. tostring(q.id)),
+        giver = giver and giver.name, where = where, level = level,
+        requires = SourceDetails.Requires(q, names),
+    }
+end
+
 --- Sections for the Source panel, in the order Quest, Drop, Vendor.
 --- player = { raceMask, classMask, faction = "A"|"H", zone = current zone name }.
 --- names = { zone(areaID), race(id), class(id), faction(id) }.
@@ -67,21 +86,9 @@ function SourceDetails.Build(itemID, player, data, names)
     for _, questID in ipairs(item.questRewards or {}) do
         local q = data.Quest(questID)
         if q and ns.ItemFilter.QuestOpen(q, player) then
-            local giver = q.startNpcs and data.Npc(q.startNpcs[1])
-            local where = giver and giver.zoneID and names.zone(giver.zoneID)
-                or (q.zoneID and names.zone(q.zoneID))
-            local level
-            if q.level then
-                level = "Quest level " .. q.level
-                if q.requiredLevel then level = level .. " · you can take it at " .. q.requiredLevel end
-            elseif q.requiredLevel then
-                level = "You can take it at " .. q.requiredLevel
-            end
-            quests[#quests + 1] = {
-                id = questID, name = q.name or ("Quest " .. questID),
-                giver = giver and giver.name, where = where, level = level,
-                requires = SourceDetails.Requires(q, names),
-            }
+            local info = SourceDetails.QuestInfo(q, data, names)
+            info.id = questID
+            quests[#quests + 1] = info
         end
     end
     if #quests > 0 then sections[#sections + 1] = { kind = "quest", quests = quests } end

@@ -55,7 +55,7 @@ function SourcePanel:Build(parent, anchor)
     end)
     scroll:SetScript("OnSizeChanged", function(s, width) content:SetWidth(width) end)
     self.scroll, self.content = scroll, content
-    self.pools = { heading = {}, card = {}, row = {}, link = {}, note = {} }
+    self.pools = { heading = {}, card = {}, row = {}, link = {}, note = {}, step = {}, banner = {}, alts = {} }
     self.used = {}
 end
 
@@ -179,11 +179,206 @@ function SourcePanel:Begin()
     self.y = 0
 end
 
+local STATE_LABEL = {
+    done = { "Done", { 0.56, 0.89, 0.53, 1 } },
+    next = { "Next", C.gold },
+    locked = { "Locked", { 0.72, 0.72, 0.72, 1 } },
+    optional = { "Breadcrumb · optional", C.faint },
+    missed = { "Closed", C.deleteLink },
+}
+local STATE_ICON = {
+    done = "Interface\\RaidFrame\\ReadyCheck-Ready",
+    missed = "Interface\\RaidFrame\\ReadyCheck-NotReady",
+}
+
+local function isDone(questID)
+    return C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
+        and C_QuestLog.IsQuestFlaggedCompleted(questID) == true or false
+end
+
+--- A colored banner: bold title and one line of text.
+function SourcePanel:Banner(title, text, color)
+    local b = take(self, "banner", function()
+        local f = CreateFrame("Frame", nil, self.content, W.BACKDROP)
+        W.Paint(f, C.window, C.windowBorder)
+        f.bar = f:CreateTexture(nil, "ARTWORK")
+        f.bar:SetPoint("TOPLEFT")
+        f.bar:SetPoint("BOTTOMLEFT")
+        f.bar:SetWidth(3)
+        f.title = W.Text(f, "GameFontNormal", C.warning)
+        f.title:SetPoint("TOPLEFT", 12, -7)
+        f.text = W.Text(f, "GameFontHighlightSmall", C.text)
+        f.text:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", 0, -3)
+        f.text:SetPoint("RIGHT", -10, 0)
+        f.text:SetJustifyH("LEFT")
+        return f
+    end)
+    b.bar:SetColorTexture(unpack(color))
+    b.title:SetTextColor(unpack(color))
+    b.title:SetText(title)
+    b.text:SetText(text)
+    self:Place(b, 42)
+end
+
+--- One Step row; click selects it.
+function SourcePanel:StepRow(step, meta, selected, onClick)
+    local r = take(self, "step", function()
+        local f = CreateFrame("Button", nil, self.content, W.BACKDROP)
+        f:SetHeight(34)
+        f.icon = f:CreateTexture(nil, "ARTWORK")
+        f.icon:SetSize(14, 14)
+        f.icon:SetPoint("LEFT", 8, 0)
+        f.n = W.Text(f, "GameFontHighlightSmall", C.muted)
+        f.n:SetPoint("LEFT", 28, 0)
+        f.name = W.Text(f, "GameFontHighlight", C.text)
+        f.name:SetPoint("TOPLEFT", 48, -3)
+        f.name:SetPoint("RIGHT", -130, 0)
+        f.name:SetJustifyH("LEFT")
+        f.name:SetWordWrap(false)
+        f.meta = W.Text(f, "GameFontHighlightSmall", C.faint)
+        f.meta:SetPoint("TOPLEFT", f.name, "BOTTOMLEFT", 0, -2)
+        f.meta:SetPoint("RIGHT", -10, 0)
+        f.meta:SetJustifyH("LEFT")
+        f.meta:SetWordWrap(false)
+        f.label = W.Text(f, "GameFontHighlightSmall", C.faint)
+        f.label:SetPoint("TOPRIGHT", -8, -5)
+        return f
+    end)
+    local st = step.state
+    if selected then W.Paint(r, C.highlight, C.highlightBorder) else W.Paint(r, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }) end
+    local tex = STATE_ICON[st]
+    if tex then
+        r.icon:SetTexture(tex)
+        r.icon:SetVertexColor(1, 1, 1, 1)
+    else
+        r.icon:SetColorTexture(unpack((st == "next" and C.gold) or (st == "locked" and C.muted) or C.emptyIcon))
+    end
+    r.n:SetText(step.n)
+    r.name:SetText(step.name)
+    local nameColor = (st == "next" and C.white) or ((st == "optional" or st == "missed") and C.faint)
+        or ((st == "todo" or st == "locked") and C.statusText) or C.text
+    r.name:SetTextColor(unpack(nameColor))
+    r.meta:SetText(meta)
+    local label = STATE_LABEL[st]
+    r.label:SetText(label and label[1] or "")
+    if label then r.label:SetTextColor(unpack(label[2])) end
+    r:SetScript("OnClick", onClick)
+    self:Place(r, 34)
+end
+
+--- The Alternatives box under a Step.
+function SourcePanel:AltsBox(alts, stepDone)
+    local box = take(self, "alts", function()
+        local f = CreateFrame("Frame", nil, self.content, W.BACKDROP)
+        W.Paint(f, { 0, 0, 0, 0 }, C.emptyIcon)
+        f.head = W.Text(f, "GameFontHighlightSmall", C.muted, "Alternatives: finishing any one completes this Step")
+        f.head:SetPoint("TOPLEFT", 10, -6)
+        f.lines = {}
+        return f
+    end)
+    for i = 1, math.max(#alts, #box.lines) do
+        local line = box.lines[i]
+        if not line then
+            line = { name = W.Text(box, "GameFontHighlightSmall", C.text), state = W.Text(box, "GameFontHighlightSmall", C.faint) }
+            line.name:SetPoint("TOPLEFT", 10, -6 - i * 16)
+            line.state:SetPoint("TOPRIGHT", -10, -6 - i * 16)
+            box.lines[i] = line
+        end
+        local a = alts[i]
+        line.name:SetShown(a ~= nil)
+        line.state:SetShown(a ~= nil)
+        if a then
+            line.name:SetText(a.name)
+            line.name:SetTextColor(unpack(a.done and C.text or C.faint))
+            line.state:SetText(a.done and "Done" or (stepDone and "Not needed" or ""))
+            line.state:SetTextColor(unpack(a.done and STATE_LABEL.done[2] or C.faint))
+        end
+    end
+    local h = 12 + (#alts + 1) * 16
+    box:SetHeight(h)
+    box:SetPoint("TOPLEFT", self.content, "TOPLEFT", 48, -self.y)
+    box:SetPoint("RIGHT", self.content, "RIGHT")
+    self.y = self.y + h + GAP
+end
+
+--- The Quest Chain for a reward quest, with the selected Step's details under it.
+function SourcePanel:Chain(rewardQuestID, itemID)
+    local player = ns.ItemIndex.Player()
+    local chain = ns.QuestChain.Build(rewardQuestID, ns.Data, isDone, player)
+    if #chain.steps < 2 then return end
+
+    if chain.missed then
+        self:Banner("Missed", ("You finished %s, which closes this chain. The item can't be earned on this character.")
+            :format(chain.missed.by), C.deleteLink)
+    elseif chain.locked then
+        self:Banner("Locked", ("Step %d %s"):format(chain.locked.step, chain.locked.reason), C.warning)
+    end
+    self:Heading("Quest Chain")
+    local summary = take(self, "note", function() return W.Text(self.content, "GameFontHighlightSmall", C.muted) end)
+    summary:SetPoint("TOPRIGHT", self.content, "TOPRIGHT", 0, -(self.y - 16 - GAP) - 2)
+    summary:SetText(chain.missed and "Closed" or ("%d of %d Steps done"):format(chain.done, chain.total))
+
+    local selected = self.selectedStep
+    if not selected then
+        for _, s in ipairs(chain.steps) do
+            if s.state == "next" or s.state == "locked" then selected = s.questID break end
+        end
+        selected = selected or chain.steps[#chain.steps].questID
+    end
+
+    local fold = self.unfold and 0 or ns.QuestChain.FoldCount(chain)
+    if fold > 0 then
+        self:LinkLine(("Show %d earlier Steps (all done)"):format(fold), function()
+            self.unfold = true
+            self:Show(itemID)
+        end)
+    end
+    local selectedStep
+    for i = fold + 1, #chain.steps do
+        local s = chain.steps[i]
+        local meta = {}
+        local zone = s.zoneID and SourcePanel.names.zone(s.zoneID)
+        if zone then meta[#meta + 1] = zone end
+        if s.level then meta[#meta + 1] = "level " .. s.level end
+        if i == #chain.steps then meta[#meta + 1] = "rewards this item" end
+        local isSel = s.questID == selected
+        if isSel then selectedStep = s end
+        self:StepRow(s, table.concat(meta, " · "), isSel, function()
+            self.selectedStep, self.showObjectives = s.questID, false
+            self:Show(itemID)
+        end)
+        if s.alts then self:AltsBox(s.alts, s.state == "done") end
+    end
+
+    if selectedStep then
+        local q = ns.Data.Quest(selectedStep.questID)
+        if q then
+            local info = ns.SourceDetails.QuestInfo(q, ns.Data, SourcePanel.names)
+            local lines = { { "Step " .. selectedStep.n, info.name } }
+            if info.giver then lines[#lines + 1] = { "Quest giver", info.giver } end
+            if info.where then lines[#lines + 1] = { "Where", info.where } end
+            if info.level then lines[#lines + 1] = { "Level", info.level } end
+            lines[#lines + 1] = { "Requires", selectedStep.breadcrumb and "None. A Breadcrumb can be skipped." or info.requires }
+            self:Card(lines)
+            if q.objectivesText then
+                self:LinkLine(self.showObjectives and "Hide objectives" or "Show objectives", function()
+                    self.showObjectives = not self.showObjectives
+                    self:Show(itemID)
+                end)
+                if self.showObjectives then
+                    self:Note(table.concat(q.objectivesText, " "), C.text)
+                end
+            end
+        end
+    end
+end
+
 --- Shows the Sources of an item. Resets the vendor list to short when the item changes.
 function SourcePanel:Show(itemID)
     if self.itemID ~= itemID then
         self.itemID = itemID
         self.allVendors = false
+        self.selectedStep, self.showObjectives, self.unfold = nil, false, false
         self.scroll:SetVerticalScroll(0)
     end
     local player = ns.ItemIndex.Player()
@@ -213,6 +408,7 @@ function SourcePanel:Show(itemID)
                 lines[#lines + 1] = { "Requires", q.requires }
                 self:Card(lines)
             end
+            self:Chain(section.quests[1].id, itemID)
         elseif section.kind == "drop" then
             self:Heading("Source: drop")
             for _, d in ipairs(section.drops) do

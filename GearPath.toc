@@ -16,6 +16,7 @@ Core\GearSets.lua
 Core\Data.lua
 Core\ItemFilter.lua
 Core\SourceDetails.lua
+Core\QuestChain.lua
 Core\ItemIndex.lua
 UI\Theme.lua
 UI\Widgets.lua
